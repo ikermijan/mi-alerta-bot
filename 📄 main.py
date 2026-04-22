@@ -1,9 +1,9 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
+import feedparser
 
 app = FastAPI()
 
-# Aquí guardamos intereses (temporal, luego irá a DB)
 intereses = []
 
 class Interes(BaseModel):
@@ -11,15 +11,31 @@ class Interes(BaseModel):
 
 @app.get("/")
 def home():
-    return {"status": "ok", "mensaje": "Tu plataforma está viva 🚀"}
+    return {"status": "ok"}
 
-# 👉 Añadir interés
 @app.post("/intereses")
 def add_interes(interes: Interes):
     intereses.append(interes.nombre)
-    return {"ok": True, "intereses": intereses}
+    return {"intereses": intereses}
 
-# 👉 Ver intereses
 @app.get("/intereses")
 def get_intereses():
     return {"intereses": intereses}
+
+# 🔥 NUEVO: buscar info
+@app.get("/buscar")
+def buscar():
+    resultados_finales = []
+
+    for interes in intereses:
+        url = f"https://news.google.com/rss/search?q={interes}"
+        feed = feedparser.parse(url)
+
+        for entry in feed.entries[:5]:
+            resultados_finales.append({
+                "interes": interes,
+                "titulo": entry.title,
+                "link": entry.link
+            })
+
+    return {"resultados": resultados_finales}
