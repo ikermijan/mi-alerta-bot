@@ -1,41 +1,29 @@
-from fastapi import FastAPI
-from pydantic import BaseModel
+from fastapi import FastAPI, Form
+from fastapi.responses import HTMLResponse
 import feedparser
 
 app = FastAPI()
 
 intereses = []
 
-class Interes(BaseModel):
-    nombre: str
-
-@app.get("/")
+@app.get("/", response_class=HTMLResponse)
 def home():
-    return {"status": "ok"}
+    return """
+    <h2>Buscador de intereses</h2>
+    <form action="/buscar" method="post">
+        <input name="interes" placeholder="ej: ciberseguridad">
+        <button type="submit">Buscar</button>
+    </form>
+    """
 
-@app.post("/intereses")
-def add_interes(interes: Interes):
-    intereses.append(interes.nombre)
-    return {"intereses": intereses}
+@app.post("/buscar", response_class=HTMLResponse)
+def buscar(interes: str = Form(...)):
+    url = f"https://news.google.com/rss/search?q={interes}"
+    feed = feedparser.parse(url)
 
-@app.get("/intereses")
-def get_intereses():
-    return {"intereses": intereses}
+    html = f"<h2>Resultados para: {interes}</h2>"
 
-# 🔥 NUEVO: buscar info
-@app.get("/buscar")
-def buscar():
-    resultados_finales = []
+    for entry in feed.entries[:10]:
+        html += f'<p><a href="{entry.link}" target="_blank">{entry.title}</a></p>'
 
-    for interes in intereses:
-        url = f"https://news.google.com/rss/search?q={interes}"
-        feed = feedparser.parse(url)
-
-        for entry in feed.entries[:5]:
-            resultados_finales.append({
-                "interes": interes,
-                "titulo": entry.title,
-                "link": entry.link
-            })
-
-    return {"resultados": resultados_finales}
+    return html
